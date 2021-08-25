@@ -1,0 +1,94 @@
+plugins {
+    id 'com.palantir.docker' version '0.25.0' apply false
+    id 'org.jetbrains.kotlin.jvm' version "${kotlin_version}"
+    id 'com.github.harbby.gradle.serviceloader' version '1.1.5'
+}
+
+apply plugin: 'kotlin'
+apply plugin: 'application'
+apply plugin: 'com.palantir.docker'
+
+group = 'com.exactpro.th2'
+version = release_version
+
+sourceCompatibility = 11
+targetCompatibility = 11
+
+compileKotlin.kotlinOptions.jvmTarget = "11"
+compileTestKotlin.kotlinOptions.jvmTarget = "11"
+
+repositories {
+    mavenCentral()
+
+    maven {
+        url 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
+    }
+
+    maven {
+        url 'https://s01.oss.sonatype.org/content/repositories/releases/'
+    }
+
+    mavenLocal()
+
+    configurations.all {
+        resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+        resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+                'Created-By': "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
+                'Specification-Title': '',
+                'Specification-Vendor': 'Exactpro Systems LLC',
+                'Implementation-Title': project.archivesBaseName,
+                'Implementation-Vendor': 'Exactpro Systems LLC',
+                'Implementation-Vendor-Id': 'com.exactpro',
+                'Implementation-Version': project.version
+        )
+    }
+}
+
+dependencies {
+    api platform('com.exactpro.th2:bom:3.0.0')
+
+    implementation 'com.exactpro.th2:common:3.21.1'
+    implementation 'com.exactpro.th2:codec:4.1.0'
+
+    implementation 'org.slf4j:slf4j-log4j12:1.7.32'
+    implementation 'org.slf4j:slf4j-api:1.7.32'
+
+    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8'
+    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect'
+    implementation group: 'io.github.microutils', name: 'kotlin-logging', version: '2.0.10'
+
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: '5.6.2'
+    testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+application {
+    mainClassName 'com.exactpro.th2.codec.MainKt'
+}
+
+applicationName = 'service'
+
+distTar {
+    archiveName "${applicationName}.tar"
+}
+
+dockerPrepare {
+    dependsOn distTar
+}
+
+docker {
+    copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
+}
+
+serviceLoader {
+    serviceInterface 'com.exactpro.th2.codec.api.IPipelineCodecFactory'
+}
